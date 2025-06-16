@@ -105,6 +105,9 @@ col_enum!(
     MountPoint "mount" "mount_point" "mp": "mount point" default,
     Uuid "uuid": "UUID",
     PartUuid "partuuid" "part_uuid": "PARTUUID",
+    LustreUuid "lustre_uuid" "luuid": "Lustre UUID",
+    LustreComponent "lustre_component" "lcomp": "Lustre Component",
+    LustreIndex "lustre_index" "lidx": "Component Index",
 );
 
 impl Col {
@@ -137,6 +140,9 @@ impl Col {
             Self::InodesCount => Alignment::Right,
             Self::MountPoint => Alignment::Left,
             Self::Uuid => Alignment::Left,
+            Self::LustreUuid => Alignment::Left,
+            Self::LustreComponent => Alignment::Center,
+            Self::LustreIndex => Alignment::Right,
             Self::PartUuid => Alignment::Left,
         }
     }
@@ -162,6 +168,9 @@ impl Col {
             Self::InodesCount => "total count of inodes",
             Self::MountPoint => "mount point",
             Self::Uuid => "filesystem UUID",
+            Self::LustreUuid => "Lustre filesystem UUID",
+            Self::LustreComponent => "Lustre component type (MDT/OST/Client)",
+            Self::LustreIndex => "Lustre component index number",
             Self::PartUuid => "partition UUID",
         }
     }
@@ -255,6 +264,39 @@ impl Col {
                 (None, Some(_)) => Ordering::Greater,
                 (None, None) => Ordering::Equal,
             },
+            Self::LustreUuid => |a: &Mount, b: &Mount| {
+                if a.info.fs_type == "lustre" && b.info.fs_type == "lustre" {
+                    a.info.fs.cmp(&b.info.fs)
+                } else if a.info.fs_type == "lustre" {
+                    Ordering::Less
+                } else if b.info.fs_type == "lustre" {
+                    Ordering::Greater
+                } else {
+                    Ordering::Equal
+                }
+            },
+            Self::LustreComponent => |a: &Mount, b: &Mount| {
+                if a.info.fs_type == "lustre" && b.info.fs_type == "lustre" {
+                    a.info.mount_point.cmp(&b.info.mount_point)
+                } else if a.info.fs_type == "lustre" {
+                    Ordering::Less
+                } else if b.info.fs_type == "lustre" {
+                    Ordering::Greater
+                } else {
+                    Ordering::Equal
+                }
+            },
+            Self::LustreIndex => |a: &Mount, b: &Mount| {
+                if a.info.fs_type == "lustre" && b.info.fs_type == "lustre" {
+                    a.info.mount_point.cmp(&b.info.mount_point)
+                } else if a.info.fs_type == "lustre" {
+                    Ordering::Less
+                } else if b.info.fs_type == "lustre" {
+                    Ordering::Greater
+                } else {
+                    Ordering::Equal
+                }
+            },
         }
     }
     pub fn default_sort_order(self) -> Order {
@@ -280,6 +322,9 @@ impl Col {
             Self::MountPoint => Order::Asc,
             Self::Uuid => Order::Asc,
             Self::PartUuid => Order::Asc,
+            Self::LustreUuid => Order::Asc,
+            Self::LustreComponent => Order::Asc,  
+            Self::LustreIndex => Order::Asc,
         }
     }
     pub fn default_sort_col() -> Self {

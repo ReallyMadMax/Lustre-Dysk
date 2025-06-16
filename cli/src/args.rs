@@ -75,6 +75,18 @@ pub struct Args {
 
     /// if provided, only the device holding this path will be shown
     pub path: Option<PathBuf>,
+    
+    /// show Lustre-specific information when available
+    #[arg(long)]
+    pub lustre: bool,
+
+    /// show only Lustre filesystems
+    #[arg(long)]
+    pub lustre_only: bool,
+
+    /// include Lustre component details (MDT/OST)
+    #[arg(long)]
+    pub lustre_components: bool,
 }
 
 /// This is an Option<bool> but I didn't find any way to configure

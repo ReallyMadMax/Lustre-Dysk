@@ -1,3 +1,4 @@
+use crate::lustre::{LustreData, MountLustreExt};
 use {
     crate::{
         Args, col::Col,
@@ -20,7 +21,7 @@ static SIZE_COLOR: u8 = 172;
 static BAR_WIDTH: usize = 5;
 static INODES_BAR_WIDTH: usize = 5;
 
-pub fn print(mounts: &[&Mount], color: bool, args: &Args) {
+pub fn print(mounts: &Vec<&Mount>, color: bool, args: &Args, lustre_data: &LustreData) {
     if args.cols.is_empty() {
         return;
     }
@@ -39,6 +40,13 @@ pub fn print(mounts: &[&Mount], color: bool, args: &Args) {
             .set("mount-point", mount.info.mount_point.to_string_lossy())
             .set_option("uuid", mount.uuid.as_ref())
             .set_option("part_uuid", mount.part_uuid.as_ref());
+        
+        if let Some(lustre_info) = mount.lustre_info(lustre_data) {
+                sub.set("lustre_uuid", &lustre_info.uuid)
+                   .set("lustre_component", &lustre_info.component_type.to_string())
+                   .set_option("lustre_index", lustre_info.component_index.as_ref().map(|i| i.to_string()));
+            }
+        
         if let Some(label) = &mount.fs_label {
             sub.set("label", label);
         }
@@ -103,6 +111,9 @@ pub fn print(mounts: &[&Mount], color: bool, args: &Args) {
                     Col::InodesCount => "**${inodes}**",
                     Col::MountPoint => "${mount-point}",
                     Col::Uuid => "${uuid}",
+                    Col::LustreUuid => "${lustre-uuid}",
+                    Col::LustreComponent => "${lustre-component}",
+                    Col::LustreIndex => "${lustre-index}",
                     Col::PartUuid => "${part_uuid}",
                 }
             )

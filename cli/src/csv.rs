@@ -1,6 +1,8 @@
 use {
     crate::{
         Args, col::Col,
+        lustre::{LustreData, MountLustreExt}, // NEW: Add Lustre imports
+
     },
     lfs_core::*,
     std::{
@@ -49,7 +51,7 @@ impl<W: Write> Csv<W> {
     }
 }
 
-pub fn print(mounts: &[&Mount], args: &Args) -> Result<(), std::io::Error> {
+pub fn print(mounts: &[&Mount], args: &Args, lustre_data: &LustreData) -> Result<(), std::io::Error> {
     let units = args.units;
     let mut csv = Csv::new(args.csv_separator, std::io::stdout());
     for col in args.cols.cols() {
@@ -80,6 +82,27 @@ pub fn print(mounts: &[&Mount], args: &Args) -> Result<(), std::io::Error> {
                 Col::MountPoint => csv.cell(mount.info.mount_point.to_string_lossy()),
                 Col::Uuid => csv.cell(mount.uuid.as_ref().map_or("", |v| v)),
                 Col::PartUuid => csv.cell(mount.part_uuid.as_ref().map_or("", |v| v)),
+                Col::LustreUuid => {
+                    if let Some(lustre_info) = mount.lustre_info(lustre_data) {
+                        csv.cell(&lustre_info.uuid)
+                    } else {
+                        csv.cell("")
+                    }
+                },
+                Col::LustreComponent => {
+                    if let Some(lustre_info) = mount.lustre_info(lustre_data) {
+                        csv.cell(&lustre_info.component_type.to_string())
+                    } else {
+                        csv.cell("")
+                    }
+                },
+                Col::LustreIndex => {
+                    if let Some(lustre_info) = mount.lustre_info(lustre_data) {
+                        csv.cell_opt(lustre_info.component_index.as_ref())
+                    } else {
+                        csv.cell("")
+                    }
+                },
             }?;
         }
         csv.end_line()?;

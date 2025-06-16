@@ -3,8 +3,9 @@ use {
     lfs_core::*,
     serde_json::{json, Value},
 };
+use crate::lustre::{LustreData, MountLustreExt};
 
-pub fn output_value(mounts: &[&Mount], units: Units) -> Value {
+pub fn output_value(mounts: &[&Mount], units: Units, lustre_data: &LustreData) -> Value {
     Value::Array(
         mounts
             .iter()
@@ -39,6 +40,21 @@ pub fn output_value(mounts: &[&Mount], units: Units) -> Value {
                         "ram": d.ram,
                     })
                 });
+                let lustre = mount.lustre_info(lustre_data).map(|lustre_info| {
+                    json!({
+                        "uuid": lustre_info.uuid,
+                        "component_type": lustre_info.component_type.to_string(),
+                        "component_index": lustre_info.component_index,
+                        "filesystem_summary": lustre_info.filesystem_summary.as_ref().map(|fs| {
+                            json!({
+                                "total_size": units.fmt(fs.total_size),
+                                "used_size": units.fmt(fs.used_size), 
+                                "available_size": units.fmt(fs.available_size),
+                                "use_percentage": fs.use_percentage,
+                            })
+                        })
+                    })
+                });
                 json!({
                     "id": mount.info.id,
                     "dev": {
@@ -54,6 +70,7 @@ pub fn output_value(mounts: &[&Mount], units: Units) -> Value {
                     "bound": mount.info.bound,
                     "remote": mount.info.is_remote(),
                     "unreachable": mount.is_unreachable(),
+                    "lustre": lustre,
                 })
             })
             .collect(),

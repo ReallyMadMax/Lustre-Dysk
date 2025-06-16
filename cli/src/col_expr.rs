@@ -145,6 +145,51 @@ impl ColExpr {
                 mount.part_uuid.as_deref(),
                 &self.value,
             ),
+            Col::LustreUuid => {
+                // Fallback: For non-Lustre filesystems, always return false
+                // For Lustre filesystems, try to match against filesystem name as approximation
+                if mount.info.fs_type == "lustre" {
+                    self.operator.eval_str(&mount.info.fs, &self.value)
+                } else {
+                    false
+                }
+            },
+            Col::LustreComponent => {
+                // Fallback: Check if it's a Lustre filesystem and try to infer component from mount point
+                if mount.info.fs_type == "lustre" {
+                    let mount_point_str = mount.info.mount_point.to_string_lossy();
+                    let inferred_component = if mount_point_str.contains("mdt") || mount_point_str.contains("MDT") {
+                        "MDT"
+                    } else if mount_point_str.contains("ost") || mount_point_str.contains("OST") {
+                        "OST"
+                    } else {
+                        "Client"
+                    };
+                    self.operator.eval_str(inferred_component, &self.value)
+                } else {
+                    false
+                }
+            },
+            Col::LustreIndex => {
+                // Fallback: For Lustre filesystems, try to extract index from mount point
+                if mount.info.fs_type == "lustre" {
+                    let mount_point_str = mount.info.mount_point.to_string_lossy();
+                    // Try to extract number from mount point like "/mnt/lustre-ost1" -> 1
+                    let index_str = mount_point_str
+                        .chars()
+                        .filter(|c| c.is_ascii_digit())
+                        .collect::<String>();
+                    if let Ok(index) = index_str.parse::<u32>() {
+                        let target_index = self.value.parse::<u32>()
+                            .map_err(|_| EvalExprError::NotANumber(self.value.to_string()))?;
+                        self.operator.eval(index, target_index)
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
         })
     }
 }
@@ -337,3 +382,27 @@ fn test_parse_float(){
     assert_eq!(parse_float("50%").unwrap().to_string(), "0.5".to_string());
 }
 
+#[cfg(test)]
+mod lustre_tests {
+    use super::*;
+    use crate::lustre::{LustreData, LustreInfo, LustreComponentType};
+
+    #[test]
+    fn test_lustre_filtering() {
+        // Test parsing of Lustre filter expressions
+        let expr = "lustre_component=OST".parse::<ColExpr>().unwrap();
+        assert_eq!(expr.col, Col::LustreComponent);
+        assert_eq!(expr.operator, ColOperator::Like);
+        assert_eq!(expr.value, "OST");
+
+        let expr = "lustre_index<3".parse::<ColExpr>().unwrap();
+        assert_eq!(expr.col, Col::LustreIndex);
+        assert_eq!(expr.operator, ColOperator::Lower);
+        assert_eq!(expr.value, "3");
+
+        let expr = "lustre_uuid=lustre-OST0000_UUID".parse::<ColExpr>().unwrap();
+        assert_eq!(expr.col, Col::LustreUuid);
+        assert_eq!(expr.operator, ColOperator::Like);
+        assert_eq!(expr.value, "lustre-OST0000_UUID");
+    }
+}

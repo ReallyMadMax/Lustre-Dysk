@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+use crate::lustre::{LustreData, MountLustreExt};
 use {
     crate::{
         col::Col,
@@ -34,6 +36,69 @@ impl Sorting {
             mounts.reverse();
         }
     }
+    
+    pub fn sort_with_lustre(self, mounts: &mut [Mount], lustre_data: &LustreData) {
+            if matches!(self.col, Col::LustreUuid | Col::LustreComponent | Col::LustreIndex) {
+                // Use custom Lustre sorting for Lustre columns
+                mounts.sort_by(|a, b| {
+                    match self.col {
+                        Col::LustreUuid => {
+                            match (a.lustre_info(lustre_data), b.lustre_info(lustre_data)) {
+                                (Some(a_info), Some(b_info)) => a_info.uuid.cmp(&b_info.uuid),
+                                (Some(_), None) => Ordering::Less,
+                                (None, Some(_)) => Ordering::Greater,
+                                (None, None) => Ordering::Equal,
+                            }
+                        },
+                        Col::LustreComponent => {
+                            match (a.lustre_info(lustre_data), b.lustre_info(lustre_data)) {
+                                (Some(a_info), Some(b_info)) => {
+                                    let a_order = match a_info.component_type {
+                                        crate::lustre::LustreComponentType::MDT => 0,
+                                        crate::lustre::LustreComponentType::OST => 1,
+                                        crate::lustre::LustreComponentType::Client => 2,
+                                        crate::lustre::LustreComponentType::Unknown => 3,
+                                    };
+                                    let b_order = match b_info.component_type {
+                                        crate::lustre::LustreComponentType::MDT => 0,
+                                        crate::lustre::LustreComponentType::OST => 1,
+                                        crate::lustre::LustreComponentType::Client => 2,
+                                        crate::lustre::LustreComponentType::Unknown => 3,
+                                    };
+                                    a_order.cmp(&b_order)
+                                },
+                                (Some(_), None) => Ordering::Less,
+                                (None, Some(_)) => Ordering::Greater,
+                                (None, None) => Ordering::Equal,
+                            }
+                        },
+                        Col::LustreIndex => {
+                            match (a.lustre_info(lustre_data), b.lustre_info(lustre_data)) {
+                                (Some(a_info), Some(b_info)) => {
+                                    match (a_info.component_index, b_info.component_index) {
+                                        (Some(a_idx), Some(b_idx)) => a_idx.cmp(&b_idx),
+                                        (Some(_), None) => Ordering::Less,
+                                        (None, Some(_)) => Ordering::Greater,
+                                        (None, None) => Ordering::Equal,
+                                    }
+                                },
+                                (Some(_), None) => Ordering::Less,
+                                (None, Some(_)) => Ordering::Greater,
+                                (None, None) => Ordering::Equal,
+                            }
+                        },
+                        _ => unreachable!(),
+                    }
+                });
+            } else {
+                // Use regular sorting for non-Lustre columns
+                self.sort(mounts);
+            }
+            
+            if self.order == Order::Desc {
+                mounts.reverse();
+            }
+        }
 }
 
 #[derive(Debug)]
