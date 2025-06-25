@@ -21,6 +21,9 @@ termimad = "0.32"
 [profile.release]
 strip = true
 
+[lib]
+name = "dysk"
+
 [patch.crates-io]
 # termimad = { path = "../../termimad" }
 

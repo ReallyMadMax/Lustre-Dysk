@@ -13,7 +13,7 @@ use {
 /// List your filesystems.
 ///
 /// Documentation at https://dystroy.org/dysk
-#[derive(Debug, Parser)]
+#[derive(Debug, Parser, Default)]
 #[command(author, about, name = "dysk", disable_version_flag = true, version, disable_help_flag = true)]
 pub struct Args {
 
@@ -79,9 +79,10 @@ pub struct Args {
 
 /// This is an Option<bool> but I didn't find any way to configure
 /// clap to parse an Option<T> as I want
-#[derive(ValueEnum)]
+#[derive(ValueEnum, Default)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TriBool {
+    #[default]
     Auto,
     Yes,
     No,
