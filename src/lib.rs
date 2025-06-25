@@ -37,6 +37,76 @@ use {
     },
 };
 
+use std::fmt::Debug;
+use crate::table::{print_generic_csv, print_generic_json};
+
+// Generic trait that any mount-like structure can implement
+pub trait MountLike: Debug + Clone {
+    fn filesystem_name(&self) -> String;
+    fn mount_point(&self) -> String;
+    fn total_bytes(&self) -> Option<u64>;
+    fn used_bytes(&self) -> Option<u64>;
+    fn available_bytes(&self) -> Option<u64>;
+    fn usage_percentage(&self) -> Option<f64>;
+    fn filesystem_type(&self) -> String;
+    fn is_normal(&self) -> bool;
+}
+
+// Implement for the existing lfs_core::Mount
+impl MountLike for lfs_core::Mount {
+    fn filesystem_name(&self) -> String {
+        if self.info.fs.is_empty() {
+            format!("{}:{}", self.info.dev.major, self.info.dev.minor)
+        } else {
+            self.info.fs.clone()
+        }
+    }
+    
+    fn mount_point(&self) -> String {
+        self.info.mount_point.to_string_lossy().to_string()
+    }
+    
+    fn total_bytes(&self) -> Option<u64> {
+        self.stats().map(|s| s.size())
+    }
+    
+    fn used_bytes(&self) -> Option<u64> {
+        self.stats().map(|s| s.used())
+    }
+    
+    fn available_bytes(&self) -> Option<u64> {
+        self.stats().map(|s| s.available())
+    }
+    
+    fn usage_percentage(&self) -> Option<f64> {
+        self.stats().map(|s| s.use_share() * 100.0)
+    }
+    
+    fn filesystem_type(&self) -> String {
+        self.info.fs_type.clone()
+    }
+    
+    fn is_normal(&self) -> bool {
+        normal::is_normal(self)
+    }
+}
+
+// Generic table printing function
+pub fn print_generic_table<T: MountLike>(
+    mounts: &[T], 
+    args: &Args
+) -> Result<(), Box<dyn std::error::Error>> {
+    if args.csv {
+        print_generic_csv(mounts, args)?;
+    } else if args.json {
+        print_generic_json(mounts, args)?;
+    } else if mounts.is_empty() {
+        println!("no mounts to display");
+    }
+    Ok(())
+}
+
+
 /// Core dysk functionality as a library function
 /// This allows other crates to use dysk's logic programmatically
 pub fn get_mounts(args: &Args) -> Result<Vec<lfs_core::Mount>, Box<dyn std::error::Error>> {
