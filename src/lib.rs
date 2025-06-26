@@ -61,31 +61,31 @@ impl MountLike for lfs_core::Mount {
             self.info.fs.clone()
         }
     }
-    
+
     fn mount_point(&self) -> String {
         self.info.mount_point.to_string_lossy().to_string()
     }
-    
+
     fn total_bytes(&self) -> Option<u64> {
         self.stats().map(|s| s.size())
     }
-    
+
     fn used_bytes(&self) -> Option<u64> {
         self.stats().map(|s| s.used())
     }
-    
+
     fn available_bytes(&self) -> Option<u64> {
         self.stats().map(|s| s.available())
     }
-    
+
     fn usage_percentage(&self) -> Option<f64> {
         self.stats().map(|s| s.use_share() * 100.0)
     }
-    
+
     fn filesystem_type(&self) -> String {
         self.info.fs_type.clone()
     }
-    
+
     fn is_normal(&self) -> bool {
         normal::is_normal(self)
     }
@@ -93,7 +93,7 @@ impl MountLike for lfs_core::Mount {
 
 // Generic table printing function
 pub fn print_generic_table<T: MountLike>(
-    mounts: &[T], 
+    mounts: &[T],
     args: &Args
 ) -> Result<(), Box<dyn std::error::Error>> {
     if args.csv {
@@ -112,7 +112,7 @@ pub fn print_generic_table<T: MountLike>(
 pub fn get_mounts(args: &Args) -> Result<Vec<lfs_core::Mount>, Box<dyn std::error::Error>> {
     let mut options = lfs_core::ReadOptions::default();
     options.remote_stats(args.remote_stats.unwrap_or_else(|| true));
-    
+
     let mut mounts = lfs_core::read_mounts(&options)?;
     
     if !args.all {
